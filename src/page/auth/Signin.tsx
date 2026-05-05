@@ -1,5 +1,5 @@
 import React, { type ChangeEvent, type FormEvent, useState } from 'react';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaFingerprint } from 'react-icons/fa';
 import { useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import GoogleIcon from '/Google_new.svg';
@@ -9,8 +9,9 @@ import PublicRoute from '../../components/auth/PublicRoute';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
 import { API_ROUTES } from '../../constants/apiRoutes';
-import { setAuthData } from '../../features/auth/authSlice';
+import { apiEndpoint } from '../../constants/env';
 import { useHttpRequest } from '../../hooks/useHttpRequest';
+import { handleAuthSuccess } from '../../utils/authHelpers';
 import { notify } from '../../utils/notify';
 
 const Login: React.FC = () => {
@@ -35,6 +36,7 @@ const Login: React.FC = () => {
   });
 
   const [userFound, setUserFound] = useState<boolean | null>(null);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
 
   // -----------------------------------------------------------
   // hooks
@@ -123,6 +125,51 @@ const Login: React.FC = () => {
       ...prev,
       [fieldName]: value,
     }));
+  };
+
+  const handlePasskeySignIn = async () => {
+    if (!loginPayload.email) {
+      setFormError((prev) => ({ ...prev, email: 'Enter your email first' }));
+      return;
+    }
+    setPasskeyLoading(true);
+    try {
+      const { startAuthentication } = await import('@simplewebauthn/browser');
+      const axios = (await import('axios')).default;
+
+      // 1. Get options from server
+      const optionsResp = await axios.post(
+        `${apiEndpoint}/${API_ROUTES.auth.passkey.loginOptions}`,
+        { email: loginPayload.email },
+      );
+      const options = optionsResp.data.data;
+
+      // 2. Trigger browser WebAuthn prompt
+      const credential = await startAuthentication({ optionsJSON: options });
+
+      // 3. Verify with server
+      const verifyResp = await axios.post(
+        `${apiEndpoint}/${API_ROUTES.auth.passkey.loginVerify}`,
+        { email: loginPayload.email, credential },
+      );
+
+      const { token } = verifyResp.data.data;
+      handleAuthSuccess(dispatch, token);
+      notify.success('Signed in with passkey!');
+      navigate('/');
+    } catch (err: unknown) {
+      const axiosErr = err as {
+        response?: { data?: { error?: string } };
+        message?: string;
+      };
+      notify.error(
+        axiosErr?.response?.data?.error ||
+          axiosErr?.message ||
+          'Passkey sign-in failed',
+      );
+    } finally {
+      setPasskeyLoading(false);
+    }
   };
 
   return (
@@ -284,6 +331,21 @@ const Login: React.FC = () => {
             <img src={MsIcon} alt="Ms icon" className="w-5" />
             <span>Microsoft</span>
           </div>
+          <button
+            type="button"
+            onClick={handlePasskeySignIn}
+            disabled={passkeyLoading}
+            className="cursor-pointer hover:bg-secondary-bg border border-main/50 w-full p-2 text-sm rounded-sm font-bold text-center flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {passkeyLoading ? (
+              <Loader className="" duration="1" />
+            ) : (
+              <>
+                <FaFingerprint className="text-btn-primary text-lg" />
+                <span>Sign in with Passkey</span>
+              </>
+            )}
+          </button>
         </div>
 
         <div className="flex items-center justify-center gap-2 p-3 text-sm text-btn-primary mt-4">

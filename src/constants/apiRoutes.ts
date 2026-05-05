@@ -13,6 +13,14 @@ export const API_ROUTES = {
     resetPassword: 'user/auth/reset-password',
     suggestUsernames: (name: string) =>
       `user/auth/suggest-usernames?name=${name}`,
+    passkey: {
+      registerOptions: 'user/auth/passkey/register/options',
+      registerVerify: 'user/auth/passkey/register/verify',
+      loginOptions: 'user/auth/passkey/login/options',
+      loginVerify: 'user/auth/passkey/login/verify',
+      list: 'user/auth/passkey',
+      delete: (id: string) => `user/auth/passkey/${id}`,
+    },
   },
   user: {
     profile: 'user/profile',
