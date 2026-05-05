@@ -78,6 +78,5 @@ export const useBootstrap = () => {
     };
 
     fetchProfile();
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally runs once on mount
   }, [dispatch, navigate]);
 };
