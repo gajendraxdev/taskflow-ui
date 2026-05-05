@@ -19,6 +19,7 @@ export const API_ROUTES = {
       loginOptions: 'user/auth/passkey/login/options',
       loginVerify: 'user/auth/passkey/login/verify',
       list: 'user/auth/passkey',
+      rename: (id: string) => `user/auth/passkey/${id}`,
       delete: (id: string) => `user/auth/passkey/${id}`,
     },
   },
