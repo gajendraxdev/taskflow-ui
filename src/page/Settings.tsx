@@ -165,7 +165,7 @@ const Settings: React.FC = () => {
 
   return (
     <div>
-      <PageHeader header="Settings" />
+      <PageHeader header="Settings" hideSearch />
 
       <div className="mt-6 max-w-2xl flex flex-col gap-8">
         {/* ── Passkeys Section ─────────────────────────────────────────────── */}
