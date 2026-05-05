@@ -6,6 +6,7 @@ import { CiShoppingTag } from 'react-icons/ci';
 import { FaRegUser } from 'react-icons/fa';
 import { MdOutlineAddLink } from 'react-icons/md';
 import { RiFlagLine } from 'react-icons/ri';
+import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import DebounceTasks from '../components/DebounceTasks';
 import DependencyRow from '../components/DependencyRow';
@@ -14,6 +15,7 @@ import { API_ROUTES } from '../constants/apiRoutes';
 import { PRIORITIES } from '../constants/constants';
 import { apiEndpoint } from '../constants/env';
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
+import type { RootState } from '../redux/store';
 import type { TaskT } from '../types/task';
 import { notify } from '../utils/notify';
 
@@ -25,10 +27,14 @@ const formInputStyle =
 const formLabelStyle = 'text-lg font-semibold';
 
 const AddTaskForm: React.FC = () => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  // Use the user's projectId as workspace; fall back to their id if not set yet
+  const workspace = user?.projectId || user?.id || 'default';
+
   const [taskData, setTaskData] = useState<Partial<TaskT>>({
     priority: 'low',
     status: 'todo',
-    workspace: 'default', // TODO: replace with real workspace/project id from user context
+    workspace,
   });
   const [error, setError] = useState<Record<string, string | undefined>>({});
   const [loading, setLoading] = useState(false);

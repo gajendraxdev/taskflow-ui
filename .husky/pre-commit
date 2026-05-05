@@ -1,2 +1,2 @@
-bun run check
-bun tsc --noEmit
+npx biome check ./src
+npx tsc --noEmit

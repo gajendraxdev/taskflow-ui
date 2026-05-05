@@ -1,6 +1,7 @@
 import type { IUser } from '../features/auth/authSlice';
 import { logout, setAuthData } from '../features/auth/authSlice';
 import type { AppDispatch } from '../redux/store';
+import { notify } from './notify';
 
 /**
  * Called after OTP verification succeeds.
@@ -20,6 +21,15 @@ export const handleAuthSuccess = (
  */
 export const handleLogout = (dispatch: AppDispatch) => {
   dispatch(logout());
+};
+
+/**
+ * Called when any API returns 401.
+ * Clears session and shows a toast so the user knows why they were redirected.
+ */
+export const handleSessionExpiry = (dispatch: AppDispatch) => {
+  dispatch(logout());
+  notify.error('Session expired. Please login again.');
 };
 
 /**

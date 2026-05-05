@@ -1,8 +1,11 @@
 import type { AxiosRequestConfig } from 'axios';
 import axios, { AxiosError } from 'axios';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { apiEndpoint } from '../constants/env';
 import type { AnyType } from '../types/globalTypes';
+import { handleSessionExpiry } from '../utils/authHelpers';
 
 export type UseHttpRequestConfig = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
@@ -55,6 +58,8 @@ export const useHttpRequest = (
   const mountRef = useRef<boolean>(true);
   const controller = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   useEffect(() => {
     mountRef.current = true;
@@ -128,9 +133,17 @@ export const useHttpRequest = (
 
           // axios error
         } else if (error instanceof AxiosError) {
+          const status = error?.response?.status;
+
+          // Session expired — clear auth and redirect
+          if (status === 401) {
+            handleSessionExpiry(dispatch);
+            navigate('/signin', { replace: true });
+          }
+
           const e: UseHttpError = {
             axiosError: true,
-            status: error?.response?.status,
+            status,
             message: error?.response?.data?.error ?? error.message,
             error_code: error?.response?.data?.code,
             raw: error,
@@ -156,7 +169,7 @@ export const useHttpRequest = (
       }
     },
 
-    [method, api, initialData, axiosConfig, abort],
+    [method, api, initialData, axiosConfig, abort, dispatch, navigate],
   );
 
   useEffect(() => {
