@@ -2,80 +2,114 @@ import axios, { AxiosError } from 'axios';
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { MdDeleteOutline, MdOutlineModeEdit } from 'react-icons/md';
+import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import {
-  colorClassMapTaskPriority,
-  colorClassMapTaskStatus,
-} from '../constants/colorMap';
+import { colorClassMapTaskPriority } from '../constants/colorMap';
 import { apiEndpoint } from '../constants/env';
+import type { RootState } from '../redux/store';
 import type { TaskT } from '../types/task';
 import { prettyDate } from '../utils/getFormatedDate';
 import TaskDeleteConfirmation from './DeleteConfirmation';
+import StatusSelect from './StatusSelect';
 import HightedText from './ui/HightedText';
-// import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-
-// const LoadingHandAnimation = "/animation_file/loading_hand.lottie";
 
 export type TaskTableProps = {
   queryString?: string | null;
 };
 
 const TaskTable: React.FC<TaskTableProps> = ({ queryString = null }) => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  const token = user?.authToken;
+  const workspace = user?.projectId || user?.id || '';
+
   const [data, setData] = useState<TaskT[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [deleteConfirmation, setDeleteConfirmation] = useState<boolean>(false);
   const [taskDeleteId, setTaskDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
-  // fetching data
+  // Build query string with workspace scoping
+  const buildQuery = useCallback(() => {
+    const params = new URLSearchParams();
+    if (workspace) params.set('workspace', workspace);
+    if (queryString) {
+      for (const [k, v] of new URLSearchParams(queryString)) {
+        if (k === 'status' && v === 'all') continue; // skip "all" — backend returns everything
+        params.set(k, v);
+      }
+    }
+    return params.toString();
+  }, [queryString, workspace]);
+
+  // Fetch tasks
   const fetchData = useCallback(async () => {
     try {
-      const resp = await axios.get(
-        `${apiEndpoint}/task?${queryString ? queryString : ''}`,
-      );
+      const resp = await axios.get(`${apiEndpoint}/task?${buildQuery()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (String(resp.status).startsWith('2')) setData(resp.data.data);
-      else if (String(resp.status).startsWith('4'))
-        toast.error(resp.data.error);
-      else toast.error('Something unexpected happen, please contact admin!');
+      else toast.error(resp.data.error);
     } catch (error) {
-      console.log(error);
       if (error instanceof AxiosError) {
-        toast.error(error.response?.data.error || error.message);
+        toast.error(error.response?.data?.error || error.message);
       } else {
         toast.error('An unknown error occurred, please contact admin!');
       }
     } finally {
       setLoading(false);
     }
-  }, [queryString]);
+  }, [buildQuery, token]);
 
   useEffect(() => {
-    const controller = new AbortController();
-
     setData([]);
     setLoading(true);
     fetchData();
-
-    return () => controller.abort();
   }, [fetchData]);
 
-  // delete confirm
+  // Inline status change
+  const handleStatusChange = async (taskId: string, newStatus: string) => {
+    setUpdatingStatusId(taskId);
+    try {
+      await axios.patch(
+        `${apiEndpoint}/task/${taskId}`,
+        { status: newStatus },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      );
+      setData((prev) =>
+        prev.map((t) =>
+          t._id === taskId ? { ...t, status: newStatus as TaskT['status'] } : t,
+        ),
+      );
+      toast.success('Status updated');
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        toast.error(error.response?.data?.error || error.message);
+      } else {
+        toast.error('Failed to update status');
+      }
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
+  // Delete confirm
   const handleDeleteConfirm = () => {
     setDeleting(true);
-    //
     (async () => {
       try {
-        const resp = await axios.delete(`${apiEndpoint}/task/${taskDeleteId}`);
-
+        const resp = await axios.delete(`${apiEndpoint}/task/${taskDeleteId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (String(resp.status).startsWith('2')) {
           setData((prev) => prev.filter((t) => t._id !== taskDeleteId));
-          toast.success(`Task deleted: ${taskDeleteId}`);
-        } else if (String(resp.status).startsWith('4'))
+          toast.success('Task deleted');
+        } else {
           toast.error(resp.data.error);
-        else toast.error('Something unexpected happen, please contact admin!');
+        }
       } catch (error) {
         if (error instanceof AxiosError) {
-          toast.error(error.response?.data.error || error.message);
+          toast.error(error.response?.data?.error || error.message);
         } else {
           toast.error('An unknown error occurred, please contact admin!');
         }
@@ -89,7 +123,6 @@ const TaskTable: React.FC<TaskTableProps> = ({ queryString = null }) => {
     })();
   };
 
-  // delete cancel
   const handleDeleteCancel = () => {
     toast.success('Task delete cancelled ❌');
     setTaskDeleteId(null);
@@ -98,21 +131,19 @@ const TaskTable: React.FC<TaskTableProps> = ({ queryString = null }) => {
 
   return (
     <article className="text-main flex flex-col justify-center items-center">
-      {/* only when data is not loaded */}
       {loading && (
         <div aria-live="polite" className="w-full mt-10 p-10">
-          {/* <DotLottieReact loop autoplay src={LoadingHandAnimation} /> */}
           <table className="w-full text-sm table-fixed rtl:text-right border-collapse overflow-x-auto animate-pulse">
             <tbody>
               {Array.from({ length: 5 }).map((_, idx) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: explanation
+                // biome-ignore lint/suspicious/noArrayIndexKey: skeleton rows
                 <tr key={idx}>
                   {[...Array(6)].map((_, cellIdx) => (
                     <td
-                      // biome-ignore lint/suspicious/noArrayIndexKey: explanation
+                      // biome-ignore lint/suspicious/noArrayIndexKey: skeleton cells
                       key={cellIdx}
                       className="h-8 bg-gray-200 rounded animate-pulse my-2"
-                    ></td>
+                    />
                   ))}
                 </tr>
               ))}
@@ -135,40 +166,51 @@ const TaskTable: React.FC<TaskTableProps> = ({ queryString = null }) => {
         <table
           aria-live="polite"
           aria-label="Task List Table"
-          className="w-full text-sm  table-fixed  rtl:text-right border-collapse overflow-x-auto"
+          className="w-full text-sm table-fixed rtl:text-right border-collapse overflow-x-auto"
         >
-          <tbody className=" px-4 py-4">
+          <thead>
+            <tr className="text-left text-xs uppercase text-gray-400 border-b-2 border-sidebar-selected">
+              <th className="py-3 font-semibold">Title</th>
+              <th className="px-4 py-3 font-semibold">Priority</th>
+              <th className="px-4 py-3 font-semibold">Due Date</th>
+              <th className="px-4 py-3 font-semibold">Tag</th>
+              <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="px-4 py-4">
             {data.map((task) => (
               <tr
                 key={task._id}
                 tabIndex={0}
-                className="hover:bg-sidebar-selected  border-b-2 border-sidebar-selected"
+                className="hover:bg-sidebar-selected border-b-2 border-sidebar-selected"
               >
                 <td className="font-semibold text-left py-4">
                   <Link to={`/task/${task._id}`}>{task.title}</Link>
                 </td>
-                <td className=" text-left px-4 py-4">
-                  {
-                    <HightedText
-                      text={task.priority}
-                      style={colorClassMapTaskPriority[task.priority]}
-                    />
-                  }
+                <td className="text-left px-4 py-4">
+                  <HightedText
+                    text={task.priority}
+                    style={colorClassMapTaskPriority[task.priority]}
+                  />
                 </td>
                 <td className="text-left px-4 py-4">
                   {prettyDate(task.deadLine)}
                 </td>
                 <td className="text-left px-4 py-4">{task.tag || '-'}</td>
                 <td className="text-left px-4 py-4">
-                  {
-                    <HightedText
-                      text={task.status || '#'}
-                      style={colorClassMapTaskStatus[task.status || 'todo']}
-                    />
-                  }
+                  <StatusSelect
+                    value={
+                      task.status as 'todo' | 'inprogress' | 'done' | 'overdue'
+                    }
+                    disabled={updatingStatusId === task._id}
+                    onChange={(newStatus) =>
+                      handleStatusChange(task._id, newStatus)
+                    }
+                    taskTitle={task.title}
+                  />
                 </td>
-
-                <td className="w-16 flex gap-4 justify-end  px-4 py-4">
+                <td className="w-16 flex gap-4 justify-end px-4 py-4">
                   <div className="flex justify-end items-center gap-2">
                     <button
                       aria-label="Edit Task"
@@ -188,7 +230,7 @@ const TaskTable: React.FC<TaskTableProps> = ({ queryString = null }) => {
                       type="button"
                       className="text-status-overdue text-xl p-1 rounded hover:bg-status-overdue hover:text-primary-bg focus:outline-none focus:ring-2 focus:ring-status-overdue transition"
                     >
-                      {<MdDeleteOutline />}
+                      <MdDeleteOutline />
                     </button>
                   </div>
                 </td>
@@ -203,8 +245,8 @@ const TaskTable: React.FC<TaskTableProps> = ({ queryString = null }) => {
           aria-live="polite"
           className="text-main text-center text-lg font-medium p-10 mt-20"
         >
-          Data is empty for status{' '}
-          <span className="font-bold underline">{'Try to change filter'}</span>
+          No tasks found.{' '}
+          <span className="font-bold underline">Try changing the filter.</span>
         </h3>
       )}
     </article>

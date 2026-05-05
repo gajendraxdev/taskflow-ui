@@ -3,13 +3,13 @@ import axios, { AxiosError } from 'axios';
 import type React from 'react';
 import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { CiShoppingTag } from 'react-icons/ci';
-import { FaRegUser } from 'react-icons/fa';
 import { MdOutlineAddLink } from 'react-icons/md';
 import { RiFlagLine } from 'react-icons/ri';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import DebounceTasks from '../components/DebounceTasks';
 import DependencyRow from '../components/DependencyRow';
+import UserSelect from '../components/UserSelect';
 import Button from '../components/ui/Button';
 import { API_ROUTES } from '../constants/apiRoutes';
 import { PRIORITIES } from '../constants/constants';
@@ -30,6 +30,7 @@ const AddTaskForm: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   // Use the user's projectId as workspace; fall back to their id if not set yet
   const workspace = user?.projectId || user?.id || 'default';
+  const token = user?.authToken;
 
   const [taskData, setTaskData] = useState<Partial<TaskT>>({
     priority: 'low',
@@ -56,7 +57,8 @@ const AddTaskForm: React.FC = () => {
       if (!query.length) return;
       try {
         const resp = await axios.get(
-          `${apiEndpoint}/${API_ROUTES.tasks.list}?search=${query}&exclude=${excludeIds}`,
+          `${apiEndpoint}/${API_ROUTES.tasks.list}?search=${query}&exclude=${excludeIds}&workspace=${workspace}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} },
         );
         setDebounceLoading(false);
         setDebounceList(resp.data.data);
@@ -140,6 +142,7 @@ const AddTaskForm: React.FC = () => {
           const resp = await axios.post(
             `${apiEndpoint}/${API_ROUTES.tasks.create}`,
             taskData,
+            { headers: token ? { Authorization: `Bearer ${token}` } : {} },
           );
           if (String(resp.status).startsWith('2'))
             notify.success('Task created!');
@@ -313,18 +316,12 @@ const AddTaskForm: React.FC = () => {
               <label className={formLabelStyle} htmlFor="t-assign">
                 Assign To
               </label>
-
-              <div className="relative">
-                <input
-                  onChange={handleOnchange}
-                  name="assignedTo"
-                  value={taskData.assignedTo || ''}
-                  className={formInputStyle}
-                  type="text"
-                  placeholder="Add team member"
-                />
-                <FaRegUser className="absolute top-[50%] -translate-y-1/2 right-4.5 text-xl" />
-              </div>
+              <UserSelect
+                value={taskData.assignedTo || ''}
+                onChange={(userId) =>
+                  setTaskData((prev) => ({ ...prev, assignedTo: userId }))
+                }
+              />
             </div>
           </div>
 

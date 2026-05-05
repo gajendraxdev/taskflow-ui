@@ -3,13 +3,14 @@ import axios, { AxiosError } from 'axios';
 import type React from 'react';
 import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react';
 import { CiShoppingTag } from 'react-icons/ci';
-import { FaRegUser } from 'react-icons/fa';
 import { MdOutlineAddLink } from 'react-icons/md';
 import { RiFlagLine } from 'react-icons/ri';
+import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import Attachments from '../components/Attachments';
 import DebounceTasks from '../components/DebounceTasks';
 import DependencyRow from '../components/DependencyRow';
+import UserSelect from '../components/UserSelect';
 import Button from '../components/ui/Button';
 import HightedText from '../components/ui/HightedText';
 import { API_ROUTES } from '../constants/apiRoutes';
@@ -17,6 +18,7 @@ import { PRIORITIES } from '../constants/constants';
 import { apiEndpoint } from '../constants/env';
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
 import useTaskDetails from '../hooks/useTaskDetails';
+import type { RootState } from '../redux/store';
 import type { DocumentT, TaskT } from '../types/task';
 import { getFormattedDate } from '../utils/getFormatedDate';
 import { notify } from '../utils/notify';
@@ -31,6 +33,9 @@ const formLabelStyle = 'text-lg font-semibold';
 
 const EditTaskForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useSelector((state: RootState) => state.auth);
+  const token = user?.authToken;
+  const workspace = user?.projectId || user?.id || '';
 
   const { task: currentTask, loading: loadingData } = useTaskDetails(
     id as string,
@@ -67,7 +72,8 @@ const EditTaskForm: React.FC = () => {
       if (!query.length) return;
       try {
         const resp = await axios.get(
-          `${apiEndpoint}/${API_ROUTES.tasks.list}?search=${query}&exclude=${excludeIds}`,
+          `${apiEndpoint}/${API_ROUTES.tasks.list}?search=${query}&exclude=${excludeIds}&workspace=${workspace}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} },
         );
         setDebounceLoading(false);
         setDebounceList(resp.data.data);
@@ -118,6 +124,7 @@ const EditTaskForm: React.FC = () => {
         const resp = await axios.patch(
           `${apiEndpoint}/${API_ROUTES.tasks.update(id as string)}`,
           updatedTask,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} },
         );
         if (String(resp.status).startsWith('2'))
           notify.success('Task updated!');
@@ -307,17 +314,14 @@ const EditTaskForm: React.FC = () => {
                 <label className={formLabelStyle} htmlFor="t-assign">
                   Assign To
                 </label>
-                <input
-                  onChange={handleOnchange}
-                  name="assignedTo"
-                  className={formInputStyle}
-                  type="text"
-                  placeholder="Add team member"
-                  defaultValue={
-                    updatedTask.assignedTo || currentTask?.assignedTo || ''
+                <UserSelect
+                  value={
+                    updatedTask.assignedTo ?? currentTask?.assignedTo ?? ''
+                  }
+                  onChange={(userId) =>
+                    setUpdatedTask((prev) => ({ ...prev, assignedTo: userId }))
                   }
                 />
-                <FaRegUser className="absolute top-[60%] right-4.5 text-xl" />
               </div>
             </div>
 

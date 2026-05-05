@@ -16,6 +16,7 @@ export const API_ROUTES = {
   },
   user: {
     profile: 'user/profile',
+    projectMembers: 'user/project-members',
   },
   tasks: {
     list: 'task',
