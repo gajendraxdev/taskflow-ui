@@ -38,7 +38,7 @@ export const ButtonIcon = ({
 const Navbar = () => {
   const { toggleSidebar } = useContext(sidebarContext);
   const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLLIElement>(null);
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();

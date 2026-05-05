@@ -10,6 +10,7 @@ import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import { apiEndpoint } from '../../constants/env';
+import { setAuthData } from '../../features/auth/authSlice';
 import { useHttpRequest } from '../../hooks/useHttpRequest';
 import { handleAuthSuccess } from '../../utils/authHelpers';
 import { notify } from '../../utils/notify';
