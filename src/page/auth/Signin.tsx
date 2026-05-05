@@ -1,5 +1,4 @@
 import React, { type ChangeEvent, type FormEvent, useState } from 'react';
-import toast from 'react-hot-toast';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
@@ -9,8 +8,10 @@ import AuthContainer from '../../components/auth/AuthContainer';
 import PublicRoute from '../../components/auth/PublicRoute';
 import Button from '../../components/ui/Button';
 import Loader from '../../components/ui/Loader';
+import { API_ROUTES } from '../../constants/apiRoutes';
 import { setAuthData } from '../../features/auth/authSlice';
 import { useHttpRequest } from '../../hooks/useHttpRequest';
+import { notify } from '../../utils/notify';
 
 const Login: React.FC = () => {
   // -----------------------------------------------------------
@@ -43,7 +44,7 @@ const Login: React.FC = () => {
     execute,
     loading,
   } = useHttpRequest({
-    url: 'user/auth/check',
+    url: API_ROUTES.auth.check,
     method: 'POST',
     manual: true,
     axiosConfig: { headers: { 'Content-Type': 'application/json' } },
@@ -52,7 +53,7 @@ const Login: React.FC = () => {
   const userSignupWith = userData?.userSignedUpWith;
 
   const login = useHttpRequest({
-    url: 'user/auth/signin',
+    url: API_ROUTES.auth.signin,
     method: 'POST',
     manual: true,
     axiosConfig: { headers: { 'Content-Type': 'application/json' } },
@@ -68,15 +69,12 @@ const Login: React.FC = () => {
 
   const checkUser = async () => {
     const user = await execute({ email: loginPayload.email });
-
     if (user.error) {
-      return toast.error(user.error.message);
+      return notify.error(user.error.message);
     }
-
     setUserFound(true);
   };
 
-  console.log(userData, userSignupWith);
   const onFormSubmitHandler = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -102,7 +100,7 @@ const Login: React.FC = () => {
       const loginResponse = await login.execute(loginPayload);
 
       if (loginResponse.error) {
-        return toast.error(loginResponse.error?.message || 'Login Failed');
+        return notify.error(loginResponse.error?.message || 'Login Failed');
       }
 
       dispatch(setAuthData({ email: loginPayload.email }));
@@ -116,8 +114,6 @@ const Login: React.FC = () => {
     const { value, name } = e.target;
     type FieldName = 'email' | 'password';
     const fieldName = name as FieldName;
-
-    console.log(value, fieldName);
     setFormError((prev) => ({
       ...prev,
       [fieldName]: null,
@@ -198,8 +194,7 @@ const Login: React.FC = () => {
             )}
           </div>
 
-          {((userFound !== null && userSignupWith === 'EMAIL') ||
-            (userFound && userSignupWith === null)) && (
+          {userFound !== null && userSignupWith === 'EMAIL' && (
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="password"
@@ -259,12 +254,18 @@ const Login: React.FC = () => {
                 <Loader className="" duration="1" />
               </div>
             )}
-            {!login.loading && userSignupWith === 'EMAIL' && (
+            {!login.loading && !loading && userSignupWith === 'EMAIL' && (
               <span className="font-medium">Login</span>
             )}
-            {!loading && !userSignupWith && (
+            {!login.loading && !loading && !userSignupWith && (
               <span className="font-medium">Continue</span>
             )}
+            {!login.loading &&
+              !loading &&
+              userSignupWith &&
+              userSignupWith !== 'EMAIL' && (
+                <span className="font-medium">Continue</span>
+              )}
           </Button>
         </form>
 

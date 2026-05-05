@@ -11,6 +11,7 @@ import EditTaskForm from './page/EditTaskForm';
 import FilteredTasks from './page/FilteredTasks';
 import FinishSettingAccount from './page/FinishSettingAccount';
 import ResetPassword from './page/ResetPassword';
+import SetNewPassword from './page/SetNewPassword';
 import Settings from './page/Settings';
 import TaskDetails from './page/TaskDetails';
 import Tasks from './page/Tasks';
@@ -30,8 +31,11 @@ function App() {
         {/* signup */}
         <Route path="/signup" element={<Signup />} />
 
-        {/* reset Passwod */}
+        {/* reset password */}
         <Route path="/resetpassword" element={<ResetPassword />} />
+
+        {/* set new password — landed from email link */}
+        <Route path="/set-new-password" element={<SetNewPassword />} />
 
         {/* complete setup account */}
         <Route path="/finishsetupaccount" element={<FinishSettingAccount />} />

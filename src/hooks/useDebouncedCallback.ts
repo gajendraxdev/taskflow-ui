@@ -10,7 +10,7 @@ export const useDebouncedCallback = <T extends (...args: any[]) => void>(
   return useCallback(
     (...args: Parameters<T>) => {
       if (timer.current) clearTimeout(timer.current);
-      setTimeout(() => {
+      timer.current = setTimeout(() => {
         fn(...args);
       }, delay);
     },

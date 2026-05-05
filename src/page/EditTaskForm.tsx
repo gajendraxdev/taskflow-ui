@@ -1,14 +1,7 @@
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import axios, { AxiosError } from 'axios';
 import type React from 'react';
-import {
-  type ChangeEvent,
-  type FormEvent,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import toast from 'react-hot-toast';
+import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react';
 import { CiShoppingTag } from 'react-icons/ci';
 import { FaRegUser } from 'react-icons/fa';
 import { MdOutlineAddLink } from 'react-icons/md';
@@ -19,13 +12,14 @@ import DebounceTasks from '../components/DebounceTasks';
 import DependencyRow from '../components/DependencyRow';
 import Button from '../components/ui/Button';
 import HightedText from '../components/ui/HightedText';
-// import { LuCalendarRange } from "react-icons/lu";
+import { API_ROUTES } from '../constants/apiRoutes';
 import { PRIORITIES } from '../constants/constants';
 import { apiEndpoint } from '../constants/env';
+import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
 import useTaskDetails from '../hooks/useTaskDetails';
 import type { DocumentT, TaskT } from '../types/task';
-import { debounce } from '../utils/debounce';
 import { getFormattedDate } from '../utils/getFormatedDate';
+import { notify } from '../utils/notify';
 
 const ButtonSubmitLoading = '/animation_file/button-loading.lottie';
 const LoadingHand = '/animation_file/loading_hand.lottie';
@@ -67,41 +61,26 @@ const EditTaskForm: React.FC = () => {
 
   const navigate = useNavigate();
 
-  const debouncedSearch = useMemo(
-    () =>
-      debounce(async (query, excludeIds) => {
-        setDebounceList([]);
-        try {
-          if (query.length) {
-            const resp = await axios.get(
-              `${apiEndpoint}/task?search=${query}&exclude=${excludeIds}`,
-            );
-
-            if (String(resp.status).startsWith('2')) {
-              setTimeout(() => {
-                setDebounceLoading(false);
-                setDebounceList(resp.data.data);
-              }, 200);
-            }
-            if (String(resp.status).startsWith('4'))
-              toast.error(resp.data.error);
-            else if (String(resp.status).startsWith('5'))
-              toast.error(
-                resp?.data?.error ||
-                  resp?.data?.error?.message ||
-                  'Something unexpected happen, please contact admin!',
-              );
-          }
-        } catch (error) {
-          console.log(error);
-          if (error instanceof AxiosError) {
-            toast.error(error.response?.data.error || error.message);
-          } else {
-            toast.error('An unknown error occurred, please contact admin!');
-          }
+  const debouncedSearch = useDebouncedCallback(
+    async (query: string, excludeIds: string) => {
+      setDebounceList([]);
+      if (!query.length) return;
+      try {
+        const resp = await axios.get(
+          `${apiEndpoint}/${API_ROUTES.tasks.list}?search=${query}&exclude=${excludeIds}`,
+        );
+        setDebounceLoading(false);
+        setDebounceList(resp.data.data);
+      } catch (error) {
+        setDebounceLoading(false);
+        if (error instanceof AxiosError) {
+          notify.error(error.response?.data?.error || error.message);
+        } else {
+          notify.error('An unknown error occurred, please contact admin!');
         }
-      }, 500),
-    [],
+      }
+    },
+    500,
   );
 
   // on change handles
@@ -137,21 +116,19 @@ const EditTaskForm: React.FC = () => {
     (async () => {
       try {
         const resp = await axios.patch(
-          `${apiEndpoint}/task/${id}`,
+          `${apiEndpoint}/${API_ROUTES.tasks.update(id as string)}`,
           updatedTask,
         );
-
-        if (String(resp.status).startsWith('2')) toast.success('Task updated');
-        else if (String(resp.status).startsWith('4'))
-          toast.error(resp.data.error);
-        else toast.error('Something unexpected happen, please contact admin!');
+        if (String(resp.status).startsWith('2'))
+          notify.success('Task updated!');
+        else
+          notify.error('Something unexpected happened, please contact admin!');
       } catch (error) {
-        console.log(error);
         if (error instanceof AxiosError)
-          toast.error(
-            error.response?.data.message || 'Error while updating task data',
+          notify.error(
+            error.response?.data?.message || 'Error while updating task',
           );
-        else toast.error('Unexpected Error');
+        else notify.error('Unexpected error occurred');
       } finally {
         setFadeOut(true);
         setTimeout(() => {

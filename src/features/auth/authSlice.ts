@@ -67,6 +67,16 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
     },
+
+    // Logout — clears state and localStorage
+    logout: (state) => {
+      state.user = initialState.user;
+      state.isUserSignedUp = false;
+      state.loading = false;
+      state.error = null;
+      localStorage.removeItem('authToken');
+      sessionStorage.removeItem('otp_email');
+    },
   },
 });
 
@@ -76,5 +86,6 @@ export const {
   setError,
   setUserSignedUp,
   resetAuthData,
+  logout,
 } = authSlice.actions;
 export default authSlice.reducer;

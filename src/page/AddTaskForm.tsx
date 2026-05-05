@@ -1,14 +1,7 @@
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import axios, { AxiosError } from 'axios';
 import type React from 'react';
-import {
-  type ChangeEvent,
-  type FormEvent,
-  // useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import toast from 'react-hot-toast';
+import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { CiShoppingTag } from 'react-icons/ci';
 import { FaRegUser } from 'react-icons/fa';
 import { MdOutlineAddLink } from 'react-icons/md';
@@ -17,11 +10,12 @@ import { useNavigate } from 'react-router-dom';
 import DebounceTasks from '../components/DebounceTasks';
 import DependencyRow from '../components/DependencyRow';
 import Button from '../components/ui/Button';
-// import { LuCalendarRange } from "react-icons/lu";
+import { API_ROUTES } from '../constants/apiRoutes';
 import { PRIORITIES } from '../constants/constants';
 import { apiEndpoint } from '../constants/env';
+import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
 import type { TaskT } from '../types/task';
-import { debounce } from '../utils/debounce';
+import { notify } from '../utils/notify';
 
 const ButtonSubmitLoading = '/animation_file/button-loading.lottie';
 
@@ -34,7 +28,7 @@ const AddTaskForm: React.FC = () => {
   const [taskData, setTaskData] = useState<Partial<TaskT>>({
     priority: 'low',
     status: 'todo',
-    workspace: '1234',
+    workspace: 'default', // TODO: replace with real workspace/project id from user context
   });
   const [error, setError] = useState<Record<string, string | undefined>>({});
   const [loading, setLoading] = useState(false);
@@ -49,42 +43,27 @@ const AddTaskForm: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // debounce
-  const debouncedSearch = useMemo(
-    () =>
-      debounce(async (query, excludeIds) => {
-        setDebounceList([]);
-        try {
-          if (query.length) {
-            const resp = await axios.get(
-              `${apiEndpoint}/task?search=${query}&exclude=${excludeIds}`,
-            );
-
-            if (String(resp.status).startsWith('2')) {
-              setTimeout(() => {
-                setDebounceLoading(false);
-                setDebounceList(resp.data.data);
-              }, 200);
-            }
-            if (String(resp.status).startsWith('4'))
-              toast.error(resp.data.error);
-            else if (String(resp.status).startsWith('5'))
-              toast.error(
-                resp?.data?.error ||
-                  resp?.data?.error?.message ||
-                  'Something unexpected happen, please contact admin!',
-              );
-          }
-        } catch (error) {
-          console.log(error);
-          if (error instanceof AxiosError) {
-            toast.error(error.response?.data.error || error.message);
-          } else {
-            toast.error('An unknown error occurred, please contact admin!');
-          }
+  // debounce search for dependencies
+  const debouncedSearch = useDebouncedCallback(
+    async (query: string, excludeIds: string) => {
+      setDebounceList([]);
+      if (!query.length) return;
+      try {
+        const resp = await axios.get(
+          `${apiEndpoint}/${API_ROUTES.tasks.list}?search=${query}&exclude=${excludeIds}`,
+        );
+        setDebounceLoading(false);
+        setDebounceList(resp.data.data);
+      } catch (error) {
+        setDebounceLoading(false);
+        if (error instanceof AxiosError) {
+          notify.error(error.response?.data?.error || error.message);
+        } else {
+          notify.error('An unknown error occurred, please contact admin!');
         }
-      }, 500),
-    [],
+      }
+    },
+    500,
   );
 
   // on input change handle
@@ -144,28 +123,28 @@ const AddTaskForm: React.FC = () => {
     if (!taskData.title) newError.title = 'Title is required!';
 
     if (!taskData.deadLine) newError.deadLine = 'please specify the deadline!';
-    console.log(newError);
 
     if (Object.keys(newError).length) {
       setError(newError);
       setLoading(false);
-      return toast.error('Please fill all the required fields!');
+      return notify.error('Please fill all the required fields!');
     } else {
       (async () => {
         try {
-          const resp = await axios.post(`${apiEndpoint}/task`, taskData);
-
+          const resp = await axios.post(
+            `${apiEndpoint}/${API_ROUTES.tasks.create}`,
+            taskData,
+          );
           if (String(resp.status).startsWith('2'))
-            toast.success('task created!');
-          else if (String(resp.status).startsWith('4'))
-            toast.error(resp.data.error);
+            notify.success('Task created!');
           else
-            toast.error('Something unexpected happen, please contact admin!');
+            notify.error(
+              'Something unexpected happened, please contact admin!',
+            );
         } catch (error) {
-          console.log(error);
           if (error instanceof AxiosError)
-            toast.error(error.response?.data.error);
-          else toast.error('Unknown error occurs, please contact admin!');
+            notify.error(error.response?.data?.error || error.message);
+          else notify.error('Unknown error occurred, please contact admin!');
         } finally {
           setFadeOut(true);
           setTimeout(() => {

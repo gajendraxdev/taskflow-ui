@@ -1,5 +1,4 @@
 import React, { type ChangeEvent, type FormEvent, useState } from 'react';
-import toast from 'react-hot-toast';
 import { BsEye } from 'react-icons/bs';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +11,7 @@ import Input from '../../components/ui/Input';
 import Loader from '../../components/ui/Loader';
 import PasswordStrengthBar from '../../components/ui/PasswordStrengthBar';
 import TextTag from '../../components/ui/TextTag';
+import { API_ROUTES } from '../../constants/apiRoutes';
 import { ERROR_CODES, SIGN_UP_STEPS } from '../../constants/constants';
 import { setAuthData } from '../../features/auth/authSlice';
 import { useHttpRequest } from '../../hooks/useHttpRequest';
@@ -19,6 +19,7 @@ import { useMultiStepForm } from '../../hooks/useMultiStepForm';
 import type { RootState } from '../../redux/store';
 import type { AnyType } from '../../types/globalTypes';
 import { checkRequiredFields } from '../../utils/checkRequiredFields';
+import { notify } from '../../utils/notify';
 import { getPasswordStrength } from '../../utils/passwordStrength';
 
 export type SignupState = keyof typeof SIGN_UP_STEPS;
@@ -50,13 +51,13 @@ const Signup: React.FC = () => {
   const navigate = useNavigate();
 
   const checkUser = useHttpRequest({
-    url: 'user/auth/check',
+    url: API_ROUTES.auth.check,
     method: 'POST',
   });
 
   const suggestions = useHttpRequest(
     {
-      url: `user/auth/suggest-usernames?name=${userData.name}`,
+      url: API_ROUTES.auth.suggestUsernames(userData.name),
       method: 'GET',
       immediate: userData.name !== '',
       debounceMs: 500,
@@ -65,7 +66,7 @@ const Signup: React.FC = () => {
   );
 
   const completeSignup = useHttpRequest({
-    url: 'user/auth/signup',
+    url: API_ROUTES.auth.signup,
     method: 'POST',
   });
 
@@ -83,14 +84,14 @@ const Signup: React.FC = () => {
     e.preventDefault();
 
     if (!userEmail.trim()) {
-      toast.error('Email is required.');
+      notify.error('Email is required.');
       return;
     }
 
     const response = await checkUser.execute({ email: userEmail });
 
     if (response?.data?.status)
-      return toast.error('Email already exists. Please sign in.');
+      return notify.error('Email already exists. Please sign in.');
 
     if (
       response.error &&
@@ -107,7 +108,7 @@ const Signup: React.FC = () => {
       return next();
     }
 
-    return toast.error(response.error?.message || 'Something went wrong');
+    return notify.error(response.error?.message || 'Something went wrong');
   };
 
   const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -118,7 +119,7 @@ const Signup: React.FC = () => {
         const check = checkRequiredFields(userData, ['name', 'username']);
 
         if (check !== '') {
-          return toast.error(
+          return notify.error(
             `Please fill the required fields, Missing filled: ${check}`,
           );
         }
@@ -140,17 +141,17 @@ const Signup: React.FC = () => {
         ]);
 
         if (check !== '') {
-          return toast.error(
+          return notify.error(
             `Please fill the required fields, Missing filled: ${check}`,
           );
         }
 
         if (userData.password !== userData.confirmPassword) {
-          return toast.error('Passwords do not match.');
+          return notify.error('Passwords do not match.');
         }
 
         if (strength.percentage < 60) {
-          return toast.error('Please choose strong password!');
+          return notify.error('Please choose strong password!');
         }
 
         setCompletedSteps((prev) =>
@@ -182,7 +183,7 @@ const Signup: React.FC = () => {
         const response = await completeSignup.execute(signupData);
 
         if (response.error) {
-          return toast.error(response.error.message);
+          return notify.error(response.error.message);
         }
 
         dispatch(setAuthData({ ...user }));

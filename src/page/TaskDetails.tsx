@@ -1,12 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import React, {
-  type ChangeEvent,
-  // useCallback,
-  // useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import toast from 'react-hot-toast';
+import React, { type ChangeEvent, useMemo, useState } from 'react';
 import { FaPlus } from 'react-icons/fa';
 import { LuClipboardList } from 'react-icons/lu';
 import { MdOutlineAddLink } from 'react-icons/md';
@@ -20,11 +13,13 @@ import TaskMetaSection from '../components/TaskMetaSection';
 import Button from '../components/ui/Button';
 import ButtonLink from '../components/ui/ButtonLink';
 import H2 from '../components/ui/H2';
+import { API_ROUTES } from '../constants/apiRoutes';
 import { apiEndpoint } from '../constants/env';
+import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
 import useTaskDetails from '../hooks/useTaskDetails';
 import type { DocumentT, TaskT } from '../types/task';
-import { debounce } from '../utils/debounce';
 import { prettyDate } from '../utils/getFormatedDate';
+import { notify } from '../utils/notify';
 
 const formFullDivStyle = 'flex flex-col gap-2';
 const formInputStyle =
@@ -60,42 +55,27 @@ const TaskDetails: React.FC = () => {
     [task],
   );
 
-  const debouncedSearch = useMemo(
-    () =>
-      debounce(async (query, excludeIds) => {
-        setDebouncedTasks([]);
-        try {
-          if (query.length) {
-            const resp = await axios.get(
-              `${apiEndpoint}/task?search=${query}&exclude=${excludeIds}`,
-            );
+  const debouncedSearch = useDebouncedCallback(
+    async (query: string, excludeIds: string) => {
+      setDebouncedTasks([]);
+      if (!query.length) return;
 
-            if (String(resp.status).startsWith('2')) {
-              setTimeout(() => {
-                setDebounceLoading(false);
-                setDebouncedTasks(resp.data.data);
-              }, 500);
-            }
-            if (String(resp.status).startsWith('4'))
-              toast.error(resp.data.error);
-            else if (String(resp.status).startsWith('5'))
-              toast.error(
-                resp?.data?.error ||
-                  resp?.data?.error?.message ||
-                  'Something unexpected happen, please contact admin!',
-              );
-          }
-        } catch (error) {
-          console.log(error);
-          if (error instanceof AxiosError) {
-            toast.error(error.response?.data.error || error.message);
-          } else {
-            toast.error('An unknown error occurred, please contact admin!');
-          }
+      try {
+        const resp = await axios.get(
+          `${apiEndpoint}/${API_ROUTES.tasks.list}?search=${query}&exclude=${excludeIds}`,
+        );
+        setDebounceLoading(false);
+        setDebouncedTasks(resp.data.data);
+      } catch (error) {
+        setDebounceLoading(false);
+        if (error instanceof AxiosError) {
+          notify.error(error.response?.data?.error || error.message);
+        } else {
+          notify.error('An unknown error occurred, please contact admin!');
         }
-        console.log('debounce query', query);
-      }, 500),
-    [],
+      }
+    },
+    500,
   );
 
   // handle debounce search
@@ -161,7 +141,7 @@ const TaskDetails: React.FC = () => {
                 deleting={deleting}
                 id={taskDeleteId}
                 onCancel={() => {
-                  toast.success('Task delete cancelled ❌');
+                  notify.success('Task delete cancelled ❌');
                   setDeleteConfirmation(false);
                 }}
                 onConfirm={deleteTask}

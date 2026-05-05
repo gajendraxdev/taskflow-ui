@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { MdDelete } from 'react-icons/md';
 import { apiEndpoint } from '../constants/env';
 import type { DocumentT } from '../types/task';
-import { fnsFormattedDate } from '../utils/getFormatedDate';
+import { fullDateTime } from '../utils/getFormatedDate';
 import TaskDeleteConfirmation from './DeleteConfirmation';
 import Loader from './ui/Loader';
 
@@ -147,7 +147,7 @@ const DocumentImage: React.FC<{
           })()}
         </p>
         <span>
-          {fnsFormattedDate(document.createdAt || new Date().toISOString())}
+          {fullDateTime(document.createdAt || new Date().toISOString())}
         </span>
       </div>
     </div>

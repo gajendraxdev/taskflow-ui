@@ -1,14 +1,17 @@
-import { useContext, type ReactNode } from 'react';
-import { FiHelpCircle } from 'react-icons/fi';
+import { type ReactNode, useContext, useEffect, useRef, useState } from 'react';
+import { FiHelpCircle, FiLogOut } from 'react-icons/fi';
 import { GoBell } from 'react-icons/go';
 import { IoSettingsOutline } from 'react-icons/io5';
 import { TbLayoutSidebarLeftCollapse } from 'react-icons/tb';
+import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { twMerge } from 'tailwind-merge';
 import HeaderIcon from '/menu.png';
 import SearchIcon from '/search.svg';
 import Button from '../components/ui/Button';
 import { sidebarContext } from '../context/SidebarContext';
+import type { RootState } from '../redux/store';
+import { handleLogout } from '../utils/authHelpers';
 
 export const ButtonIcon = ({
   children: icon,
@@ -34,8 +37,28 @@ export const ButtonIcon = ({
 
 const Navbar = () => {
   const { toggleSidebar } = useContext(sidebarContext);
-
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const dispatch = useDispatch();
+  const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
+
+  const onLogout = () => {
+    handleLogout(dispatch);
+    navigate('/signin');
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <nav className="w-full h-12 bg-secondary-bg border-b-2 border-b-sidebar-selected p-2">
       <div className="h-full w-full flex items-center justify-between">
@@ -87,7 +110,7 @@ const Navbar = () => {
             </ButtonIcon>
           </li>
           <li>
-            <ButtonIcon>
+            <ButtonIcon onClick={() => navigate('/settings')}>
               <IoSettingsOutline className="text-lg" />
             </ButtonIcon>
           </li>
@@ -96,12 +119,40 @@ const Navbar = () => {
               <FiHelpCircle className="text-lg" />
             </ButtonIcon>
           </li>
-          <li>
-            <img
-              src="https://unsplash.com/photos/_PtMzmxN1ac/download?ixid=M3wxMjA3fDB8MXxzZWFyY2h8NTJ8fHByb2ZpbGV8ZW58MHx8fHwxNzY0NzM1NzY2fDA&force=true&fm=jpg"
-              alt="p"
-              className="cursor-pointer h-8 w-auto rounded-full p-1 hover:border hover:border-sidebar-selected"
-            />
+
+          {/* Avatar + logout dropdown */}
+          <li className="relative" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setShowMenu((prev) => !prev)}
+              className="cursor-pointer h-8 w-8 rounded-full overflow-hidden hover:ring-2 hover:ring-btn-primary transition-all"
+              aria-label="User menu"
+            >
+              <img
+                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=random`}
+                alt="avatar"
+                className="h-full w-full object-cover"
+              />
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 top-10 z-50 w-48 bg-secondary-bg border border-sidebar-selected rounded-md shadow-lg py-1">
+                <div className="px-4 py-2 border-b border-sidebar-selected">
+                  <p className="text-sm font-semibold text-main truncate">
+                    {user?.name || 'User'}
+                  </p>
+                  <p className="text-xs text-main/60 truncate">{user?.email}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-status-overdue hover:bg-sidebar-selected transition-colors cursor-pointer"
+                >
+                  <FiLogOut className="text-base" />
+                  Logout
+                </button>
+              </div>
+            )}
           </li>
         </ul>
       </div>
