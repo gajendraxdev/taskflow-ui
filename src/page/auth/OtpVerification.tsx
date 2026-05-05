@@ -108,18 +108,20 @@ const OtpVerification: React.FC<{ maxDigit?: number }> = ({ maxDigit = 6 }) => {
       return notify.error(response.error.message || 'OTP verification failed');
     }
 
-    handleAuthSuccess(dispatch, response.data.token, { email });
+    // Don't call handleAuthSuccess yet — that sets localStorage which triggers
+    // PublicRoute to redirect before the passkey prompt can render.
+    // Store the token in state and commit it only when the user makes their choice.
     sessionStorage.removeItem('otp_email');
-
     notify.success('OTP verified successfully 🎉');
-
-    // Show passkey prompt before navigating
     setAuthToken(response.data.token);
     setShowPasskeyPrompt(true);
   };
 
   const handleAddPasskey = async () => {
+    if (!authToken) return;
     setAddingPasskey(true);
+    // Commit auth now — user has made their choice
+    handleAuthSuccess(dispatch, authToken, { email });
     try {
       const { startRegistration } = await import('@simplewebauthn/browser');
       const axios = (await import('axios')).default;
@@ -157,6 +159,9 @@ const OtpVerification: React.FC<{ maxDigit?: number }> = ({ maxDigit = 6 }) => {
   };
 
   const handleSkipPasskey = () => {
+    if (!authToken) return;
+    // Commit auth on skip too
+    handleAuthSuccess(dispatch, authToken, { email });
     navigate('/dashboard');
   };
 
